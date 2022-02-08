@@ -190,6 +190,7 @@ if __name__ == "__main__":
     pred_mat = [[make_random_predicate() for j in range(k)] for i in range(trials)] 
     exact_mat = [execute_subsetsums_exact(cur_preds) for cur_preds in pred_mat]
     comb_mat = list(zip(pred_mat, exact_mat))
+    result_mat = [[], [], []]
 
     for par in tqdm(range(1, n + 1)):
         print("par =", par)
@@ -197,14 +198,20 @@ if __name__ == "__main__":
         round_mat = np.array([eval_round(par, cur_preds, cur_exact) for (cur_preds, cur_exact) in comb_mat]).T
         round_av = [round(item.mean(), 5) for item in round_mat]
         print("round results:", round_av)
+        result_mat[0].append(round_av)
 
         noise_mat = np.array([eval_noise(par, cur_preds, cur_exact) for (cur_preds, cur_exact) in comb_mat]).T
         noise_av = [round(item.mean(), 5) for item in noise_mat]
         print("noise results:", noise_av)
+        result_mat[1].append(noise_av)
 
         sample_mat = np.array([eval_sample(par, cur_preds, cur_exact) for (cur_preds, cur_exact) in comb_mat]).T
         sample_av = [round(item.mean(), 5) for item in sample_mat]
         print("sample results:", sample_av)
+        result_mat[2].append(sample_av)
+    np.savetxt("round_res.csv", np.asarray(result_mat[0]), delimiter=",")
+    np.savetxt("noise_res.csv", np.asarray(result_mat[1]), delimiter=",")
+    np.savetxt("sample_res.csv", np.asarray(result_mat[2]), delimiter=",")
 
 
 # Problem 1.d
