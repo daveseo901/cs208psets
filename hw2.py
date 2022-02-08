@@ -1,6 +1,7 @@
 # Starter code for Homework 2.
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 
 # Problem 1 setup
@@ -37,7 +38,7 @@ def execute_subsetsums_round(R, predicates):
     :param predicates: a list of predicates on the public variables
     :returns a 1-d np.ndarray of exact answers the subset sum queries"""
     raw = data[target].values @ np.stack([pred(data) for pred in predicates], axis=1)
-    return [round(num/5)*5 for num in raw]
+    return [round(num/R)*R for num in raw]
 
 
 def execute_subsetsums_noise(sigma, predicates):
@@ -49,7 +50,7 @@ def execute_subsetsums_noise(sigma, predicates):
     :returns a 1-d np.ndarray of exact answers the subset sum queries"""
     raw = data[target].values @ np.stack([pred(data) for pred in predicates], axis=1)
     noise = np.random.normal(0, sigma, len(raw))
-    return map(sum, zip(raw, noise))
+    return list(map(sum, zip(raw, noise)))
 
 
 def execute_subsetsums_sample(t, predicates):
@@ -71,11 +72,11 @@ if __name__ == "__main__":
         lambda data: data['sex'] == 1,      # "is-female" predicate
         lambda data: data['married'] == 1,  # "is-married" predicate
     ])
-    n1 = list(execute_subsetsums_exact([lambda data: data['sex'] == 1]))[0]
-    n2 = list(execute_subsetsums_round(5, [lambda data: data['sex'] == 1]))[0]
-    n3 = list(execute_subsetsums_noise(2, [lambda data: data['sex'] == 1]))[0]
-    n4 = list(execute_subsetsums_sample(50, [lambda data: data['sex'] == 1]))[0]
-    print(n1, n2, n3, n4)
+    #n1 = list(execute_subsetsums_exact([lambda data: data['sex'] == 1]))[0]
+    #n2 = list(execute_subsetsums_round(5, [lambda data: data['sex'] == 1]))[0]
+    #n3 = list(execute_subsetsums_noise(2, [lambda data: data['sex'] == 1]))[0]
+    #n4 = list(execute_subsetsums_sample(50, [lambda data: data['sex'] == 1]))[0]
+    #print(n1, n2, n3, n4)
 
 
 def make_random_predicate():
@@ -111,10 +112,7 @@ def reconstruction_attack(data_pub, predicates, answers):
     :param predicates: a list of k predicate functions
     :param answers: a list of k answers to a query on data filtered by the k predicates
     :return 1-dimensional boolean ndarray"""
-    coeff = []
-    for pred in predicates:
-        coeff.append(list(map(int, pred(data_pub))))
-    comat = np.array(coeff)
+    comat = np.array([list(map(int, pred(data_pub))) for pred in predicates])
     anmat = np.array(answers)
     result = np.linalg.lstsq(comat, anmat, rcond=None)
     return result[0]
@@ -134,8 +132,79 @@ if __name__ == "__main__":
         if (results[i] < 0.5 and data[target][i] == 0) or\
          (results[i] >= 0.5 and data[target][i] == 1):
             correct += 1
-    print(correct/correct)
-                    
+    #print(correct/correct)
+
+
+# Problem 1.c
+def rmse(answers, exact):
+    return np.sqrt(((answers - exact) ** 2).mean())
+
+
+def eval_round(R, predicates, exact):
+    n = len(data)
+    k = 2*n
+    ans = execute_subsetsums_round(R, predicates)
+    #exact = execute_subsetsums_exact(predicates)
+    error = rmse(ans, exact) 
+    results = reconstruction_attack(data[pub], predicates, ans)
+    correct = 0
+    for i in range(n):
+        if (results[i] < 0.5 and data[target][i] == 0) or\
+         (results[i] >= 0.5 and data[target][i] == 1):
+            correct += 1
+    return [error, correct/n]
+
+
+def eval_noise(sigma, predicates, exact):
+    n = len(data)
+    k = 2*n
+    ans = execute_subsetsums_noise(sigma, predicates)
+    #exact = execute_subsetsums_exact(predicates)
+    error = rmse(ans, exact) 
+    results = reconstruction_attack(data[pub], predicates, ans)
+    correct = 0
+    for i in range(n):
+        if (results[i] < 0.5 and data[target][i] == 0) or\
+         (results[i] >= 0.5 and data[target][i] == 1):
+            correct += 1
+    return [error, correct/n]
+
+
+def eval_sample(t, predicates, exact):
+    n = len(data)
+    k = 2*n
+    ans = execute_subsetsums_sample(t, predicates)
+    #exact = execute_subsetsums_exact(predicates)
+    error = rmse(ans, exact) 
+    results = reconstruction_attack(data[pub], predicates, ans)
+    correct = 0
+    for i in range(n):
+        if (results[i] < 0.5 and data[target][i] == 0) or\
+         (results[i] >= 0.5 and data[target][i] == 1):
+            correct += 1
+    return [error, correct/n]
+
+
+if __name__ == "__main__":
+    trials = 10
+    pred_mat = [[make_random_predicate() for j in range(k)] for i in range(trials)] 
+    exact_mat = [execute_subsetsums_exact(cur_preds) for cur_preds in pred_mat]
+    comb_mat = list(zip(pred_mat, exact_mat))
+
+    for par in tqdm(range(1, n + 1)):
+        print("par =", par)
+
+        round_mat = np.array([eval_round(par, cur_preds, cur_exact) for (cur_preds, cur_exact) in comb_mat]).T
+        round_av = [round(item.mean(), 5) for item in round_mat]
+        print("round results:", round_av)
+
+        noise_mat = np.array([eval_noise(par, cur_preds, cur_exact) for (cur_preds, cur_exact) in comb_mat]).T
+        noise_av = [round(item.mean(), 5) for item in noise_mat]
+        print("noise results:", noise_av)
+
+        sample_mat = np.array([eval_sample(par, cur_preds, cur_exact) for (cur_preds, cur_exact) in comb_mat]).T
+        sample_av = [round(item.mean(), 5) for item in sample_mat]
+        print("sample results:", sample_av)
 
 
 # Problem 1.d
