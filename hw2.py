@@ -28,6 +28,7 @@ def execute_subsetsums_exact(predicates):
     return data[target].values @ np.stack([pred(data) for pred in predicates], axis=1)
 
 
+# Problem 1.b
 def execute_subsetsums_round(R, predicates):
     """Count the number of citizens that satisfy each predicate.
     Resembles a public query interface on a sequestered dataset.
@@ -39,12 +40,42 @@ def execute_subsetsums_round(R, predicates):
     return [round(num/5)*5 for num in raw]
 
 
+def execute_subsetsums_noise(sigma, predicates):
+    """Count the number of citizens that satisfy each predicate.
+    Resembles a public query interface on a sequestered dataset.
+    Computed as in equation (1).
+
+    :param predicates: a list of predicates on the public variables
+    :returns a 1-d np.ndarray of exact answers the subset sum queries"""
+    raw = data[target].values @ np.stack([pred(data) for pred in predicates], axis=1)
+    noise = np.random.normal(0, sigma, len(raw))
+    return map(sum, zip(raw, noise))
+
+
+def execute_subsetsums_sample(t, predicates):
+    """Count the number of citizens that satisfy each predicate.
+    Resembles a public query interface on a sequestered dataset.
+    Computed as in equation (1).
+
+    :param predicates: a list of predicates on the public variables
+    :returns a 1-d np.ndarray of exact answers the subset sum queries"""
+    sz = len(data)
+    sample = data.sample(n = t)
+    raw = sample[target].values @ np.stack([pred(sample) for pred in predicates], axis=1)
+    return [num*(sz/t) for num in raw]
+
+
 if __name__ == "__main__":
     # EXAMPLE: writing and using predicates
     num_female_citizens, num_married_citizens = execute_subsetsums_exact([
         lambda data: data['sex'] == 1,      # "is-female" predicate
         lambda data: data['married'] == 1,  # "is-married" predicate
     ])
+    n1 = list(execute_subsetsums_exact([lambda data: data['sex'] == 1]))[0]
+    n2 = list(execute_subsetsums_round(5, [lambda data: data['sex'] == 1]))[0]
+    n3 = list(execute_subsetsums_noise(2, [lambda data: data['sex'] == 1]))[0]
+    n4 = list(execute_subsetsums_sample(50, [lambda data: data['sex'] == 1]))[0]
+    print(n1, n2, n3, n4)
 
 
 def make_random_predicate():
