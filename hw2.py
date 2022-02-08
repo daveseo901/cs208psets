@@ -28,6 +28,17 @@ def execute_subsetsums_exact(predicates):
     return data[target].values @ np.stack([pred(data) for pred in predicates], axis=1)
 
 
+def execute_subsetsums_round(R, predicates):
+    """Count the number of citizens that satisfy each predicate.
+    Resembles a public query interface on a sequestered dataset.
+    Computed as in equation (1).
+
+    :param predicates: a list of predicates on the public variables
+    :returns a 1-d np.ndarray of exact answers the subset sum queries"""
+    raw = data[target].values @ np.stack([pred(data) for pred in predicates], axis=1)
+    return [round(num/5)*5 for num in raw]
+
+
 if __name__ == "__main__":
     # EXAMPLE: writing and using predicates
     num_female_citizens, num_married_citizens = execute_subsetsums_exact([
@@ -55,6 +66,12 @@ if __name__ == "__main__":
 
 
 # Problem 1.a
+def round_bool(flt):
+    if flt < 0.5:
+        return 0
+    else:
+        return 1
+
 # TODO: Write the reconstruction function!
 def reconstruction_attack(data_pub, predicates, answers):
     """Reconstructs a target column based on the `answers` to queries about `data`.
@@ -63,7 +80,31 @@ def reconstruction_attack(data_pub, predicates, answers):
     :param predicates: a list of k predicate functions
     :param answers: a list of k answers to a query on data filtered by the k predicates
     :return 1-dimensional boolean ndarray"""
-    pass
+    coeff = []
+    for pred in predicates:
+        coeff.append(list(map(int, pred(data_pub))))
+    comat = np.array(coeff)
+    anmat = np.array(answers)
+    result = np.linalg.lstsq(comat, anmat, rcond=None)
+    return result[0]
+
+
+if __name__ == "__main__":
+    n = len(data)
+    k = 2*n
+    preds = []
+    for i in range(k):
+        cur_pred = make_random_predicate()
+        preds.append(cur_pred)
+    ans = execute_subsetsums_exact(preds)
+    results = reconstruction_attack(data[pub], preds, ans)
+    correct = 0
+    for i in range(n):
+        if (results[i] < 0.5 and data[target][i] == 0) or\
+         (results[i] >= 0.5 and data[target][i] == 1):
+            correct += 1
+    print(correct/correct)
+                    
 
 
 # Problem 1.d
