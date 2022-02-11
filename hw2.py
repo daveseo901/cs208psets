@@ -132,7 +132,7 @@ if __name__ == "__main__":
         if (results[i] < 0.5 and data[target][i] == 0) or\
          (results[i] >= 0.5 and data[target][i] == 1):
             correct += 1
-    #print(correct/correct)
+    print(correct/n)
 
 
 # Problem 1.c
